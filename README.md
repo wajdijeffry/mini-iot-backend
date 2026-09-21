@@ -4,7 +4,9 @@ NestJS backend for a live IoT data monitor. Polls the [Open-Meteo](https://open-
 
 ## Data Source
 
-Uses the **Open-Meteo API** (free, no API key required) to simulate an outdoor environmental sensor. Coordinates are hardcoded in `sensor-ingestion.service.ts` and can be changed to any location.
+Uses the **Open-Meteo API** (free, no API key required) to simulate an outdoor environmental sensor.
+
+Coordinates are **not hardcoded** — the service starts with a default location, but the frontend requests the browser's real geolocation on load and sends it to `POST /api/sensor-data/location`, which updates the coordinates used for all subsequent polls (and triggers an immediate re-fetch). If the frontend never sends a location (e.g. permission denied, or the API is used standalone), it falls back to the default coordinates in `sensor-ingestion.service.ts`.
 
 ## Tech Stack
 
@@ -54,6 +56,20 @@ Returns the most recent reading plus historical logs.
 }
 ```
 
+### `POST /api/sensor-data/location`
+
+Updates the coordinates used for future polls and immediately fetches a fresh reading from the new location.
+
+**Request body:**
+```json
+{ "latitude": 2.6852979562702632, "longitude": 101.90139283124552 }
+```
+
+**Response:**
+```json
+{ "success": true, "latitude": 2.6852979562702632, "longitude": 101.90139283124552 }
+```
+
 ## Project Structure
 
 ```
@@ -72,3 +88,4 @@ src/
 - Polling interval is set to every minute (`CronExpression.EVERY_MINUTE`) for fast demoing. This falls within the task's suggested 1–5 minute range.
 - CORS is enabled to allow the Ionic frontend (default `http://localhost:8100`) to call this API during development.
 - `synchronize: true` is used for TypeORM in this project for simplicity; not recommended for production use.
+- Location is dynamic at runtime (see `POST /api/sensor-data/location` above) rather than fixed — the constant in the service is only a fallback default.

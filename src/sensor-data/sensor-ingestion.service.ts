@@ -6,18 +6,30 @@ import { Repository } from 'typeorm';
 import { firstValueFrom } from 'rxjs';
 import { SensorData } from './sensor-data.entity';
 
-const LATITUDE = 2.73;
-const LONGITUDE = 101.94;
+// Default coordinates, used until the frontend sends the user's real location
+const DEFAULT_LATITUDE = 2.73;
+const DEFAULT_LONGITUDE = 101.94;
 
 @Injectable()
 export class SensorIngestionService implements OnModuleInit {
   private readonly logger = new Logger(SensorIngestionService.name);
+  private latitude = DEFAULT_LATITUDE;
+  private longitude = DEFAULT_LONGITUDE;
 
   constructor(
     private readonly httpService: HttpService,
     @InjectRepository(SensorData)
     private readonly sensorDataRepository: Repository<SensorData>,
   ) {}
+
+  // Called by the controller when the frontend sends real geolocation
+  setLocation(latitude: number, longitude: number): void {
+    this.latitude = latitude;
+    this.longitude = longitude;
+    this.logger.log(`Location updated to lat=${latitude}, lon=${longitude}`);
+    // Fetch immediately with the new location instead of waiting for the next cron tick
+    this.fetchAndStoreReading();
+  }
 
   async onModuleInit() {
     await this.fetchAndStoreReading();
@@ -30,7 +42,7 @@ export class SensorIngestionService implements OnModuleInit {
 
   private async fetchAndStoreReading(): Promise<void> {
     try {
-      const url = `https://api.open-meteo.com/v1/forecast?latitude=${LATITUDE}&longitude=${LONGITUDE}&current=temperature_2m,relative_humidity_2m`;
+      const url = `https://api.open-meteo.com/v1/forecast?latitude=${this.latitude}&longitude=${this.longitude}&current=temperature_2m,relative_humidity_2m`;
 
       const response = await firstValueFrom(this.httpService.get(url));
       const current = response.data?.current;
